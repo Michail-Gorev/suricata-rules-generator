@@ -1,107 +1,217 @@
 <template>
   <div class="p-8">
-    <h1 class="text-2xl font-bold mb-4">Advanced Suricata Rule Generator</h1>
+    <h1 class="text-2xl font-bold mb-6">Генератор правил Suricata</h1>
 
-    <!-- Network Devices Section -->
-    <div class="mb-8">
-      <h2 class="text-xl font-bold mb-4">Network Devices</h2>
-      <div v-for="(device, index) in networkDevices" :key="index" class="mb-4">
-        <input v-model="device.name" type="text" placeholder="Device Name" class="p-2 border border-gray-300 rounded-md mr-2">
-        <input v-model="device.ip" type="text" placeholder="IP Address" class="p-2 border border-gray-300 rounded-md">
-        <button @click="removeDevice(index)" class="ml-2 bg-red-500 text-white p-2 rounded-md">Remove</button>
+    <!-- Секция определения переменных -->
+    <div class="mb-8 p-4 border rounded-lg bg-gray-50">
+      <h2 class="text-xl font-bold mb-4">Определение переменных</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Адресные группы -->
+        <div>
+          <h3 class="text-lg font-semibold mb-3 flex justify-between items-center">
+            <span>Адресные группы</span>
+            <button @click="addAddressGroup" class="bg-green-500 text-white px-3 py-1 rounded text-sm">+ Добавить</button>
+          </h3>
+          <div v-for="(group, index) in addressGroups" :key="'addr-'+index" class="mb-3 p-3 border rounded bg-white">
+            <div class="flex mb-2">
+              <input v-model="group.name" placeholder="Имя группы" class="flex-1 p-2 border rounded mr-2" @input="validateGroupName($event, index, 'address')">
+              <button @click="removeGroup(index, 'address')" class="bg-red-500 text-white px-3 rounded">×</button>
+            </div>
+            <textarea v-model="group.value" placeholder="IP-адреса или CIDR (через запятую)" class="w-full p-2 border rounded" rows="2"></textarea>
+            <div class="mt-1 text-sm text-gray-600">Пример: 192.168.1.0/24, 10.0.0.0/8, !192.168.1.100</div>
+          </div>
+        </div>
+
+        <!-- Портовые группы -->
+        <div>
+          <h3 class="text-lg font-semibold mb-3 flex justify-between items-center">
+            <span>Портовые группы</span>
+            <button @click="addPortGroup" class="bg-green-500 text-white px-3 py-1 rounded text-sm">+ Добавить</button>
+          </h3>
+          <div v-for="(group, index) in portGroups" :key="'port-'+index" class="mb-3 p-3 border rounded bg-white">
+            <div class="flex mb-2">
+              <input v-model="group.name" placeholder="Имя группы" class="flex-1 p-2 border rounded mr-2" @input="validateGroupName($event, index, 'port')">
+              <button @click="removeGroup(index, 'port')" class="bg-red-500 text-white px-3 rounded">×</button>
+            </div>
+            <textarea v-model="group.value" placeholder="Номера портов (через запятую)" class="w-full p-2 border rounded" rows="2"></textarea>
+            <div class="mt-1 text-sm text-gray-600">Пример: 80, 443, 8080, !8081, 9000-9999</div>
+          </div>
+        </div>
       </div>
-      <button @click="addDevice" class="bg-blue-500 text-white p-2 rounded-md">Add Device</button>
     </div>
 
-    <!-- Address Groups Section -->
-    <div class="mb-8">
-      <h2 class="text-xl font-bold mb-4">Address Groups</h2>
-      <div v-for="(group, index) in addressGroups" :key="index" class="mb-4">
-        <input v-model="group.name" type="text" placeholder="Group Name" class="p-2 border border-gray-300 rounded-md mr-2">
-        <input v-model="group.addresses" type="text" placeholder="Addresses (comma separated)" class="p-2 border border-gray-300 rounded-md">
-        <button @click="removeAddressGroup(index)" class="ml-2 bg-red-500 text-white p-2 rounded-md">Remove</button>
+    <!-- Секция определения правил -->
+    <div class="mb-8 p-4 border rounded-lg bg-gray-50">
+      <h2 class="text-xl font-bold mb-4">Определение правил</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Основные параметры -->
+        <div>
+          <h3 class="text-lg font-semibold mb-3">Основные параметры</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Действие</label>
+              <select v-model="rule.action" class="w-full p-2 border rounded bg-white">
+                <option value="alert">alert (предупреждение)</option>
+                <option value="drop">drop (отбросить)</option>
+                <option value="pass">pass (пропустить)</option>
+                <option value="reject">reject (отклонить)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Протокол</label>
+              <select v-model="rule.proto" class="w-full p-2 border rounded bg-white">
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="icmp">ICMP</option>
+                <option value="http">HTTP</option>
+                <option value="dns">DNS</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">ID правила (sid)</label>
+              <input v-model="rule.sid" type="number" class="w-full p-2 border rounded bg-white" placeholder="Уникальный ID">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Версия (rev)</label>
+              <input v-model="rule.rev" type="number" class="w-full p-2 border rounded bg-white" placeholder="Номер версии">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Сообщение</label>
+              <input v-model="rule.msg" class="w-full p-2 border rounded bg-white" placeholder="Описание правила">
+            </div>
+          </div>
+        </div>
+
+        <!-- Источник и назначение -->
+        <div>
+          <h3 class="text-lg font-semibold mb-3">Источник и назначение</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Источник (IP)</label>
+              <select v-model="rule.src_ip" class="w-full p-2 border rounded bg-white">
+                <option value="any">любой</option>
+                <option v-for="group in addressGroups" :value="group.name">{{ group.name }}</option>
+                <option value="custom">-- указать вручную --</option>
+              </select>
+              <input v-if="rule.src_ip === 'custom'" v-model="rule.custom_src_ip" class="w-full mt-2 p-2 border rounded bg-white" placeholder="IP/CIDR источника">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Порт источника</label>
+              <select v-model="rule.src_port" class="w-full p-2 border rounded bg-white">
+                <option value="any">любой</option>
+                <option v-for="group in portGroups" :value="group.name">{{ group.name }}</option>
+                <option value="custom">-- указать вручную --</option>
+              </select>
+              <input v-if="rule.src_port === 'custom'" v-model="rule.custom_src_port" class="w-full mt-2 p-2 border rounded bg-white" placeholder="Порт источника">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Назначение (IP)</label>
+              <select v-model="rule.dest_ip" class="w-full p-2 border rounded bg-white">
+                <option value="any">любой</option>
+                <option v-for="group in addressGroups" :value="group.name">{{ group.name }}</option>
+                <option value="custom">-- указать вручную --</option>
+              </select>
+              <input v-if="rule.dest_ip === 'custom'" v-model="rule.custom_dest_ip" class="w-full mt-2 p-2 border rounded bg-white" placeholder="IP/CIDR назначения">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1">Порт назначения</label>
+              <select v-model="rule.dest_port" class="w-full p-2 border rounded bg-white">
+                <option value="any">любой</option>
+                <option v-for="group in portGroups" :value="group.name">{{ group.name }}</option>
+                <option value="custom">-- указать вручную --</option>
+              </select>
+              <input v-if="rule.dest_port === 'custom'" v-model="rule.custom_dest_port" class="w-full mt-2 p-2 border rounded bg-white" placeholder="Порт назначения">
+            </div>
+          </div>
+        </div>
       </div>
-      <button @click="addAddressGroup" class="bg-blue-500 text-white p-2 rounded-md">Add Address Group</button>
+
+      <!-- Параметры содержимого -->
+      <div class="mt-6">
+        <h3 class="text-lg font-semibold mb-3">Параметры содержимого</h3>
+
+        <div class="mb-4">
+          <div class="flex items-center mb-2">
+            <input v-model="rule.content" class="flex-1 p-2 border rounded bg-white" placeholder="Содержимое для поиска">
+            <button @click="addContent" class="ml-2 bg-blue-500 text-white px-4 py-2 rounded">Добавить</button>
+          </div>
+          <div v-for="(content, index) in rule.contents" :key="index" class="flex items-center mb-2 p-2 bg-white border rounded">
+            <span class="flex-1">content:"{{ content.pattern }}";</span>
+            <div class="flex space-x-2">
+              <select v-model="content.modifiers" multiple class="p-1 border rounded text-sm" style="height: auto">
+                <option value="nocase">nocase</option>
+                <option value="http_uri">http_uri</option>
+                <option value="http_header">http_header</option>
+                <option value="fast_pattern">fast_pattern</option>
+              </select>
+              <button @click="removeContent(index)" class="bg-red-500 text-white px-2 rounded">×</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Дополнительные параметры -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Класс типа</label>
+            <input v-model="rule.class_type" class="w-full p-2 border rounded bg-white" placeholder="например, trojan-activity">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Приоритет</label>
+            <input v-model="rule.priority" type="number" class="w-full p-2 border rounded bg-white" placeholder="1-255">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Метанданные</label>
+            <input v-model="rule.metadata" class="w-full p-2 border rounded bg-white" placeholder="ключ значение">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Ссылка</label>
+            <input v-model="rule.reference" class="w-full p-2 border rounded bg-white" placeholder="URL ссылки">
+          </div>
+        </div>
+      </div>
+
+      <button @click="generateRule" class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium">
+        Сгенерировать правило
+      </button>
     </div>
 
-    <!-- Port Groups Section -->
-    <div class="mb-8">
-      <h2 class="text-xl font-bold mb-4">Port Groups</h2>
-      <div v-for="(group, index) in portGroups" :key="index" class="mb-4">
-        <input v-model="group.name" type="text" placeholder="Group Name" class="p-2 border border-gray-300 rounded-md mr-2">
-        <input v-model="group.ports" type="text" placeholder="Ports (comma separated)" class="p-2 border border-gray-300 rounded-md">
-        <button @click="removePortGroup(index)" class="ml-2 bg-red-500 text-white p-2 rounded-md">Remove</button>
-      </div>
-      <button @click="addPortGroup" class="bg-blue-500 text-white p-2 rounded-md">Add Port Group</button>
-    </div>
+    <!-- Результат -->
+    <div class="p-4 border rounded-lg bg-gray-50">
+      <h2 class="text-xl font-bold mb-4">Результат</h2>
 
-    <!-- Rule Configuration Section -->
-    <div class="mb-8">
-      <h2 class="text-xl font-bold mb-4">Rule Configuration</h2>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Source</label>
-        <select v-model="rule.source" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-          <option v-for="device in networkDevices" :value="device.ip">{{ device.name }} ({{ device.ip }})</option>
-          <option v-for="group in addressGroups" :value="group.name">{{ group.name }} ({{ group.addresses }})</option>
-        </select>
+      <div class="mb-6">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-lg font-semibold">YAML конфигурация</h3>
+          <button @click="copyYaml" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+            Копировать YAML
+          </button>
+        </div>
+        <pre class="bg-white p-4 rounded border overflow-x-auto text-sm">{{ yamlOutput }}</pre>
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Destination</label>
-        <select v-model="rule.destination" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-          <option v-for="device in networkDevices" :value="device.ip">{{ device.name }} ({{ device.ip }})</option>
-          <option v-for="group in addressGroups" :value="group.name">{{ group.name }} ({{ group.addresses }})</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Protocol</label>
-        <select v-model="rule.protocol" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-          <option value="tcp">TCP</option>
-          <option value="udp">UDP</option>
-          <option value="icmp">ICMP</option>
-          <option value="http">HTTP</option>
-          <option value="ftp">FTP</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Source Port</label>
-        <select v-model="rule.srcPort" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-          <option v-for="group in portGroups" :value="group.name">{{ group.name }} ({{ group.ports }})</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Destination Port</label>
-        <select v-model="rule.destPort" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-          <option v-for="group in portGroups" :value="group.name">{{ group.name }} ({{ group.ports }})</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Action</label>
-        <select v-model="rule.action" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-          <option value="drop">Drop</option>
-          <option value="pass">Pass</option>
-          <option value="reject">Reject</option>
-          <option value="alert">Alert</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Filter Condition</label>
-        <input v-model="rule.filterCondition" type="text" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" placeholder="e.g., 'password'">
-      </div>
-      <button @click="generateRule" class="bg-blue-500 text-white p-2 rounded-md">Generate Rule</button>
-    </div>
 
-    <!-- Generated Rules Section -->
-    <div class="mt-8">
-      <h2 class="text-xl font-bold mb-2">Generated Rules</h2>
-      <div class="mb-4">
-        <h3 class="text-lg font-bold mb-2">YAML Rule</h3>
-        <pre class="bg-gray-100 p-4 rounded-md">{{ yamlRule }}</pre>
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-lg font-semibold">Правило Suricata</h3>
+          <div class="space-x-2">
+            <button @click="copyRule" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+              Копировать правило
+            </button>
+            <button @click="exportAll" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+              Экспортировать всё
+            </button>
+          </div>
+        </div>
+        <pre class="bg-white p-4 rounded border overflow-x-auto text-sm">{{ ruleOutput }}</pre>
       </div>
-      <div class="mb-4">
-        <h3 class="text-lg font-bold mb-2">Text Rule</h3>
-        <pre class="bg-gray-100 p-4 rounded-md">{{ textRule }}</pre>
-      </div>
-      <button @click="exportYaml" class="mt-4 bg-green-500 text-white p-2 rounded-md">Export YAML</button>
     </div>
   </div>
 </template>
@@ -110,99 +220,216 @@
 export default {
   data() {
     return {
-      networkDevices: JSON.parse(localStorage.getItem('networkDevices')) || [
-        { name: 'Switch1', ip: '192.168.1.1' },
-        { name: 'Router1', ip: '192.168.1.254' }
+      addressGroups: [
+        { name: 'HOME_NET', value: '192.168.0.0/16, 10.0.0.0/8' },
+        { name: 'EXTERNAL_NET', value: 'any' }
       ],
-      addressGroups: JSON.parse(localStorage.getItem('addressGroups')) || [
-        { name: 'HOME_NET', addresses: '192.168.1.0/24' }
-      ],
-      portGroups: JSON.parse(localStorage.getItem('portGroups')) || [
-        { name: 'HTTP_PORTS', ports: '80, 8080' }
+      portGroups: [
+        { name: 'HTTP_PORTS', value: '80, 443, 8080, 8443' },
+        { name: 'SHELL_PORTS', value: '22, 23, 3389' }
       ],
       rule: {
-        source: '',
-        destination: '',
-        protocol: 'tcp',
-        srcPort: '',
-        destPort: '',
-        action: 'drop',
-        filterCondition: ''
+        action: 'alert',
+        proto: 'tcp',
+        src_ip: '$HOME_NET',
+        src_port: 'any',
+        direction: '->',
+        dest_ip: '$EXTERNAL_NET',
+        dest_port: '$HTTP_PORTS',
+        msg: '',
+        sid: this.generateSid(),
+        rev: 1,
+        content: '',
+        contents: [],
+        class_type: '',
+        priority: '',
+        metadata: '',
+        reference: '',
+        custom_src_ip: '',
+        custom_src_port: '',
+        custom_dest_ip: '',
+        custom_dest_port: ''
       },
-      yamlRule: '',
-      textRule: ''
-    };
+      yamlOutput: '',
+      ruleOutput: ''
+    }
   },
   methods: {
-    addDevice() {
-      this.networkDevices.push({ name: '', ip: '' });
-      this.saveData();
-    },
-    removeDevice(index) {
-      this.networkDevices.splice(index, 1);
-      this.saveData();
-    },
     addAddressGroup() {
-      this.addressGroups.push({ name: '', addresses: '' });
-      this.saveData();
-    },
-    removeAddressGroup(index) {
-      this.addressGroups.splice(index, 1);
-      this.saveData();
+      this.addressGroups.push({ name: '', value: '' });
     },
     addPortGroup() {
-      this.portGroups.push({ name: '', ports: '' });
-      this.saveData();
+      this.portGroups.push({ name: '', value: '' });
     },
-    removePortGroup(index) {
-      this.portGroups.splice(index, 1);
-      this.saveData();
+    removeGroup(index, type) {
+      if (type === 'address') {
+        this.addressGroups.splice(index, 1);
+      } else {
+        this.portGroups.splice(index, 1);
+      }
     },
-    saveData() {
-      localStorage.setItem('networkDevices', JSON.stringify(this.networkDevices));
-      localStorage.setItem('addressGroups', JSON.stringify(this.addressGroups));
-      localStorage.setItem('portGroups', JSON.stringify(this.portGroups));
+    validateGroupName(event, index, type) {
+      // Убрана проверка на $ в начале имени
+      const value = event.target.value;
+      if (type === 'address') {
+        this.addressGroups[index].name = value;
+      } else {
+        this.portGroups[index].name = value;
+      }
+    },
+    addContent() {
+      if (this.rule.content) {
+        this.rule.contents.push({
+          pattern: this.rule.content,
+          modifiers: ['nocase']
+        });
+        this.rule.content = '';
+      }
+    },
+    removeContent(index) {
+      this.rule.contents.splice(index, 1);
+    },
+    generateSid() {
+      return Math.floor(1000000 + Math.random() * 9000000);
     },
     generateRule() {
-      // Генерация YAML-правила
-      const yamlTemplate = `- action: ${this.rule.action}
-  src_ip: ${this.rule.source}
-  dest_ip: ${this.rule.destination}
-  protocol: ${this.rule.protocol}
-  src_port: ${this.rule.srcPort}
-  dest_port: ${this.rule.destPort}
-  content: "${this.rule.filterCondition}"
-  nocase: true`;
+      // Генерация YAML
+      const yamlVars = {
+        'address-groups': {},
+        'port-groups': {}
+      };
 
-      this.yamlRule = yamlTemplate;
+      this.addressGroups.forEach(group => {
+        yamlVars['address-groups'][group.name] = group.value.split(',').map(item => item.trim());
+      });
 
-      // Генерация текстового правила
-      const textTemplate = `${this.rule.action} ${this.rule.protocol} ${this.rule.source}:${this.rule.srcPort} -> ${this.rule.destination}:${this.rule.destPort} (${this.rule.filterCondition})`;
-      this.textRule = textTemplate;
+      this.portGroups.forEach(group => {
+        yamlVars['port-groups'][group.name] = group.value.split(',').map(item => item.trim());
+      });
+
+      // Получаем значения IP и портов (добавляем $ при использовании)
+      const srcIp = this.rule.src_ip === 'custom'
+        ? this.rule.custom_src_ip
+        : (this.rule.src_ip !== 'any' ? `${this.rule.src_ip}` : 'any');
+
+      const srcPort = this.rule.src_port === 'custom'
+        ? this.rule.custom_src_port
+        : (this.rule.src_port !== 'any' ? `${this.rule.src_port}` : 'any');
+
+      const destIp = this.rule.dest_ip === 'custom'
+        ? this.rule.custom_dest_ip
+        : (this.rule.dest_ip !== 'any' ? `${this.rule.dest_ip}` : 'any');
+
+      const destPort = this.rule.dest_port === 'custom'
+        ? this.rule.custom_dest_port
+        : (this.rule.dest_port !== 'any' ? `${this.rule.dest_port}` : 'any');
+
+      // Формируем YAML
+      this.yamlOutput = `%YAML 1.1
+---
+vars:
+  address-groups:
+${Object.entries(yamlVars['address-groups']).map(([name, values]) => `    ${name}: [${values.join(', ')}]`).join('\n')}
+  port-groups:
+${Object.entries(yamlVars['port-groups']).map(([name, values]) => `    ${name}: [${values.join(', ')}]`).join('\n')}
+
+rules:
+  - rule:
+      action: ${this.rule.action}
+      protocol: ${this.rule.proto}
+      src_ip: ${srcIp}
+      src_port: ${srcPort}
+      direction: "${this.rule.direction}"
+      dest_ip: ${destIp}
+      dest_port: ${destPort}
+      msg: "${this.rule.msg || ''}"
+      sid: ${this.rule.sid}
+      rev: ${this.rule.rev}
+      contents:
+      ${this.rule.contents.map(c => `        - pattern: "${c.pattern}"\n          modifiers: [${c.modifiers.join(', ')}]`).join('\n')}
+      metadata: "${this.rule.metadata || ''}"
+      classtype: "${this.rule.class_type || ''}"
+      priority: ${this.rule.priority || 'null'}
+      reference: "${this.rule.reference || ''}"`;
+
+      // Генерация правила в строковом формате (с $ для переменных)
+      let ruleParts = [
+        this.rule.action,
+        this.rule.proto,
+        srcIp,
+        srcPort,
+        this.rule.direction,
+        destIp,
+        destPort
+      ];
+
+      let ruleOptions = [];
+      if (this.rule.msg) {
+        ruleOptions.push(`msg:"${this.rule.msg}"`);
+      }
+
+      if (this.rule.class_type) {
+        ruleOptions.push(`classtype:${this.rule.class_type}`);
+      }
+
+      if (this.rule.priority) {
+        ruleOptions.push(`priority:${this.rule.priority}`);
+      }
+
+      if (this.rule.reference) {
+        ruleOptions.push(`reference:${this.rule.reference}`);
+      }
+
+      if (this.rule.metadata) {
+        ruleOptions.push(`metadata:${this.rule.metadata}`);
+      }
+
+      this.rule.contents.forEach(content => {
+        let contentPart = `content:"${content.pattern}"`;
+        if (content.modifiers && content.modifiers.length > 0) {
+          contentPart += `; ${content.modifiers.join('; ')}`;
+        }
+        ruleOptions.push(contentPart);
+      });
+
+      ruleOptions.push(`sid:${this.rule.sid}; rev:${this.rule.rev}`);
+
+      this.ruleOutput = `${ruleParts.join(' ')} (${ruleOptions.join('; ')})`;
     },
-    exportYaml() {
-      // Создание YAML-файла с сетевыми переменными
-      const addressGroupsYaml = this.addressGroups.map(group => `  ${group.name}: [${group.addresses}]`).join('\n');
-      const portGroupsYaml = this.portGroups.map(group => `  ${group.name}: [${group.ports}]`).join('\n');
-
-      const yamlContent = `vars:
-      address-groups:
-      ${addressGroupsYaml}
-      port-groups:
-      ${portGroupsYaml}
-
-${this.yamlRule}`;
-
-      const blob = new Blob([yamlContent], { type: 'text/yaml' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'suricata_rules.yaml';
-      link.click();
+    copyYaml() {
+      navigator.clipboard.writeText(this.yamlOutput);
+      alert('YAML конфигурация скопирована в буфер обмена!');
+    },
+    copyRule() {
+      navigator.clipboard.writeText(this.ruleOutput);
+      alert('Правило скопировано в буфер обмена!');
+    },
+    exportAll() {
+      const content = `${this.yamlOutput}\n\n# Правила\n${this.ruleOutput}`;
+      const blob = new Blob([content], { type: 'text/yaml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'suricata_rules.yaml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
+  },
+  mounted() {
+    this.generateRule();
   }
-};
+}
 </script>
 
-<style scoped>
-/* Стили для компонента */
+<style>
+/* Стили для мультиселекта */
+select[multiple] {
+  min-height: 38px;
+  background-image: none;
+  padding-right: 8px;
+}
+select[multiple] option {
+  padding: 4px 8px;
+}
 </style>
