@@ -1,4 +1,4 @@
-```markdown
+
 # Suricata Rule Generator - Генератор правил для Suricata
 
 ![Suricata Logo](https://suricata.io/wp-content/uploads/2019/10/suricata-logo.png)
@@ -57,7 +57,6 @@ export default {
 <style>
 /* Все стили */
 </style>
-```
 
 ## 💻 Технологический стек
 
