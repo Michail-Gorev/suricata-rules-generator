@@ -272,9 +272,9 @@ export default {
       // Убрана проверка на $ в начале имени
       const value = event.target.value;
       if (type === 'address') {
-        this.addressGroups[index].name = value;
+        this.addressGroups[index].name = '$' + value;
       } else {
-        this.portGroups[index].name = value;
+        this.portGroups[index].name = '$' + value;
       }
     },
     addContent() {
