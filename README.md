@@ -81,7 +81,7 @@ npm install
 ```bash
 npm run serve
 ```
-Приложение доступно на `http://localhost:8080`
+Приложение доступно на `http://localhost:5173`
 
 ### 3. Сборка для production
 ```bash
